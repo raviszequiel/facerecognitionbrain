@@ -3,6 +3,8 @@ import Navigation from './components/Navigation/Navigation';
 import FaceRecognition from './components/FaceRecognition/FaceRecognition';
 import Logo from './components/Logo/Logo';
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
+import Signin from './components/Signin/Signin';
+import Register from './components/Register/Register';
 import Rank from './components/Rank/Rank';
 
 
@@ -150,15 +152,36 @@ function App() {
         return requestOptions;
     }
 
-    const [input, setInput] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+    const [input, setInput] = useState('https://samples.clarifai.com/metro-north.jpg');
+    const [imageUrl, setImageUrl] = useState('https://samples.clarifai.com/metro-north.jpg');
+    const [box, setBox ] = useState({});
+    const [route, setRoute ] = useState('signin');
+    const [isSignedIn, setIsSignedIn ] = useState(false);
 
-    // const test = "HERE";
+    const calculateFaceLocation = (resp) => {
+        
+        const clarifaiFace = resp.outputs[0].data.regions[0].region_info.bounding_box;
+        console.log(clarifaiFace);
+        const image = document.getElementById('input_image');
+        const width = Number(image.width);
+        const height = Number(image.height);
+        console.log(width, height)
+        return {
+            leftCol: clarifaiFace.left_col * width,
+            topRow: clarifaiFace.top_row * height,
+            rightCol: width - (clarifaiFace.right_col * width),
+            bottomRow: height - clarifaiFace.bottom_row * height
+        }
+    }
+
+    const displayFaceBox = (box) => {
+        console.log(box);
+        setBox(box);
+    }
 
     const onButtonSubmit = () => {
         console.log('click');
         setImageUrl(input);
-        // console.log(test);
         console.log(imageUrl);
 
         const requestOptions = buildRequest(input);
@@ -167,11 +190,6 @@ function App() {
         // // NOTE: MODEL_VERSION_ID is optional, you can also call prediction with the MODEL_ID only
         // // https://api.clarifai.com/v2/models/{YOUR_MODEL_ID}/outputs
         // // this will default to the latest version_id
-
-        // console.log(faceDetectionObj.MODEL_ID);
-        // console.log(faceDetectionObj.MODEL_VERSION_ID);
-        // console.log(faceDetectionObj.requestOptions);
-
         // // const req = `https://api.clarifai.com/v2/models/${this.MODEL_ID}/versions/${this.MODEL_VERSION_ID}/outputs`;
         const req = `https://api.clarifai.com/v2/models/${MODEL_ID}/outputs`;
         // // const req = "https://api.clarifai.com/v2/models/" + this.MODEL_ID + "/versions/" + this.MODEL_VERSION_ID + "/outputs";
@@ -179,7 +197,9 @@ function App() {
     
         fetch(req, requestOptions)
             .then(response => response.json())
-            .then(result => console.log(result))
+            .then(result => {
+                displayFaceBox(calculateFaceLocation(result));
+            })                
             .catch(error => console.log('error', error));
     }
 
@@ -187,6 +207,16 @@ function App() {
         console.log(event.target.value);
         setInput(event.target.value); 
         // console.log(input);               
+    }
+
+    const onRouteChange = (route_status) => {
+        if( route_status === 'signout') {
+            setIsSignedIn(false);
+        } else if (route_status === 'home') {
+            setIsSignedIn(true);
+        }
+        
+        setRoute(route_status);
     }
 
     if (init) {
@@ -197,137 +227,24 @@ function App() {
                     particlesLoaded={particlesLoaded}
                     options={options}
                 />
-                <Navigation />
-                <Logo />
-                <Rank />
-                <ImageLinkForm onInputChange={onInputChange} onButtonSubmit={onButtonSubmit}/>
-                <FaceRecognition imageURL={imageUrl}/>
-            </div>
-        );
+                <Navigation onRouteChange={onRouteChange} isSignedIn={isSignedIn}/>
+                { route === 'home'
+                    ? <div>
+                        <Logo />
+                        <Rank />
+                        <ImageLinkForm onInputChange={onInputChange} onButtonSubmit={onButtonSubmit}/>
+                        <FaceRecognition box={box} imageURL={imageUrl}/>
+                    </div>
+                    : (
+                        route === "signin"
+                        ? <Signin onRouteChange={onRouteChange}/>
+                        : <Register onRouteChange={onRouteChange}/>
+                    )
+                }                    
+            </div>)
     }
     
 }
 
-// class App extends Component {
-
-//     constructor() {
-//         super();
-//         this.state = {
-//             input: '',
-//         }
-
-//         const [init, setInit] = useState(false);
-//         // this should be run only once per application lifetime
-//         useEffect(() => {
-//             initParticlesEngine(async (engine) => {
-//             // you can initiate the tsParticles instance (engine) here, adding custom shapes or presets
-//             // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
-//             // starting from v2 you can add only the features you need reducing the bundle size
-//             //await loadAll(engine);
-//             //await loadFull(engine);
-//             await loadSlim(engine);
-//             //await loadBasic(engine);
-//             }).then(() => {
-//             setInit(true);
-//             });
-//         }, []);
-
-//         const particlesLoaded = (container) => {
-//             console.log(container);
-//         };
-
-//         const options = useMemo(() => ({
-//             background: {
-//                 color: {
-//                     value: "#0d47a1",
-//                 },
-//             },
-//             fpsLimit: 120,
-//             interactivity: {
-//                 events: {
-//                     onClick: {
-//                         enable: true,
-//                         mode: "push",
-//                     },
-//                     onHover: {
-//                         enable: true,
-//                         mode: "repulse",
-//                     },
-//                 },
-//                 modes: {
-//                     push: {
-//                         quantity: 4,
-//                     },
-//                     repulse: {
-//                         distance: 200,
-//                         duration: 0.4,
-//                     },
-//                 },
-//             },
-//             particles: {
-//                 color: {
-//                     value: "#ffffff",
-//                 },
-//                 links: {
-//                     color: "#ffffff",
-//                     distance: 150,
-//                     enable: true,
-//                     opacity: 0.5,
-//                     width: 1,
-//                 },
-//                 move: {
-//                     direction: "none",
-//                     enable: true,
-//                     outModes: {
-//                         default: "bounce",
-//                     },
-//                     random: false,
-//                     speed: 6,
-//                     straight: false,
-//                 },
-//                 number: {
-//                     density: {
-//                         enable: true,
-//                     },
-//                     value: 90,
-//                 },
-//                 opacity: {
-//                     value: 0.5,
-//                 },
-//                 shape: {
-//                     type: "circle",
-//                 },
-//                 size: {
-//                     value: { min: 1, max: 5 },
-//                 },
-//             },
-//             detectRetina: true,}), [], 
-//         );
-//     }
-
-//     onInputChange = (event) => {
-//         console.log(event);
-//     }
-
-//     render() {
-//         if (init) {
-//             return (
-//                 <div className="App">
-//                     <Particles className='particles'
-//                         id="tsparticles"
-//                         particlesLoaded={particlesLoaded}
-//                         options={options}
-//                     />
-//                     <Navigation />
-//                     <Logo />
-//                     <Rank />
-//                     <ImageLinkForm onInputChange={this.onInputChange()} />
-//                     {/* <FaceRecognition /> */}
-//                 </div>
-//             );
-//         }
-//     }    
-    
-// }
 
 export default App;
