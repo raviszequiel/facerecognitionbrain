@@ -13,6 +13,7 @@ import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim"; // if you are going to use `loadSlim`, install the "@tsparticles/slim" package too.
 // import { loadBasic } from "@tsparticles/basic"; // if you are going to use `loadBasic`, install the "@tsparticles/basic" package too.
 
+
 function App() {
 
     //---------------------------------------------------------------
@@ -22,6 +23,11 @@ function App() {
 
     // this should be run only once per application lifetime
     useEffect(() => {
+
+        fetch('http://localhost:3000/')
+            .then(response => response.json())
+            .then(console.log)
+
         initParticlesEngine(async (engine) => {
         // you can initiate the tsParticles instance (engine) here, adding custom shapes or presets
         // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
@@ -157,6 +163,45 @@ function App() {
     const [box, setBox ] = useState({});
     const [route, setRoute ] = useState('signin');
     const [isSignedIn, setIsSignedIn ] = useState(false);
+    const [input_email, setEmail] = useState('dummy@gmail.com');
+    const [input_password, setPassword] = useState('dummy');
+    const [input_name, setName] = useState('johndoe');
+    const [user, setUser] = useState({
+        id: '',
+        name: '',
+        email: '',
+        entries: '0',
+        joined: ''
+    });
+
+    const setToInitialState = () => {
+        setInput(null);
+        setImageUrl(null);
+        setBox({});
+        setIsSignedIn(false);
+        setEmail('');
+        setPassword('');
+        setName('');
+        setUser({
+            id: '',
+            name: '',
+            email: '',
+            entries: '0',
+            joined: ''
+        });
+    }
+
+    const loadUser = (data) => {
+        setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            entries: data.entries,
+            joined: data.joined
+        })
+        
+        
+    }
 
     const calculateFaceLocation = (resp) => {
         
@@ -180,8 +225,16 @@ function App() {
     }
 
     const onButtonSubmit = () => {
-        console.log('click');
+        console.log('begin user:', user);
         setImageUrl(input);
+        // setUser({
+        //     id: '',
+        //     name: '',
+        //     email: '',
+        //     entries: '0',
+        //     joined: ''
+        // });
+        
         console.log(imageUrl);
 
         const requestOptions = buildRequest(input);
@@ -190,16 +243,49 @@ function App() {
         // // NOTE: MODEL_VERSION_ID is optional, you can also call prediction with the MODEL_ID only
         // // https://api.clarifai.com/v2/models/{YOUR_MODEL_ID}/outputs
         // // this will default to the latest version_id
-        // // const req = `https://api.clarifai.com/v2/models/${this.MODEL_ID}/versions/${this.MODEL_VERSION_ID}/outputs`;
-        const req = `https://api.clarifai.com/v2/models/${MODEL_ID}/outputs`;
-        // // const req = "https://api.clarifai.com/v2/models/" + this.MODEL_ID + "/versions/" + this.MODEL_VERSION_ID + "/outputs";
+        const req = `https://api.clarifai.com/v2/models/${MODEL_ID}/versions/${MODEL_VERSION_ID}/outputs`;
+        // const req = `https://api.clarifai.com/v2/models/${MODEL_ID}/outputs`;
+        // const req = "https://api.clarifai.com/v2/models/" + this.MODEL_ID + "/versions/" + this.MODEL_VERSION_ID + "/outputs";
         console.log(req);
     
         fetch(req, requestOptions)
-            .then(response => response.json())
-            .then(result => {
-                displayFaceBox(calculateFaceLocation(result));
-            })                
+            .then(response => response.text())
+            .then(result => { 
+                if(result) {
+                    console.log("user_id:", user.id);
+                    fetch('http://localhost:3000/image', {
+                        method: 'put',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            id: user.id
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(count => {
+                            console.log("Count:", count);
+                            // user.entries = count;
+                            // setUser(Object.assign(user, {entries: count}));
+                            setUser({
+                                id: user.id,
+                                name: user.name,
+                                email: user.email,
+                                entries: count,
+                                joined: user.joined
+                            });
+                            console.log("user_id:", user.id);
+                            console.log('end user:', user);
+                        })
+                        .catch(console.log)
+                }
+                const json_obj = JSON.parse(result);
+                console.log(json_obj)
+                displayFaceBox(calculateFaceLocation(json_obj));
+
+            })
+            // .then(final_result => {
+            //     console.log(final_result);
+            //     displayFaceBox(calculateFaceLocation(final_result));
+            // })
             .catch(error => console.log('error', error));
     }
 
@@ -211,12 +297,72 @@ function App() {
 
     const onRouteChange = (route_status) => {
         if( route_status === 'signout') {
-            setIsSignedIn(false);
+            // setIsSignedIn(false);
+            setToInitialState();
         } else if (route_status === 'home') {
             setIsSignedIn(true);
         }
         
         setRoute(route_status);
+    }
+
+    const onNameChange = (event) => {
+        // this.setState({signInEmail: event.target.value})
+        // console.log(event.target.value);
+        setName(event.target.value);
+    }
+
+    const onEmailChange = (event) => {
+        // this.setState({signInEmail: event.target.value})
+        // console.log(event.target.value);
+        setEmail(event.target.value);
+    }
+
+    const onPasswordChange = (event) => {
+        // this.setState({signInPassword: event.target.value})
+        // console.log(event.target.value);
+        setPassword(event.target.value);
+    }
+
+    const onSubmitSignIn = () => {
+        console.log("email:", input_email, "password:", input_password);
+        fetch('http://localhost:3000/signin', {
+            method: 'post',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                email: input_email,
+                password: input_password
+            })
+        })
+            .then(response => response.json())
+            .then(user => {
+                console.log(user.id);
+                if (user.id) {
+                    loadUser(user);
+                    onRouteChange('home');
+                }
+            })   
+    }
+
+    const onSubmitRegister = () => {
+        console.log("name:", input_name, "email:", input_email, "password:", input_password);
+        fetch('http://localhost:3000/register', {
+            method: 'post',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: input_name,
+                email: input_email,
+                password: input_password
+            })
+        })
+            .then(response => response.json())
+            .then(user => {
+                console.log(user);
+                if (user) {
+                    loadUser(user);
+                    onRouteChange('home');
+                }
+            })   
     }
 
     if (init) {
@@ -231,14 +377,17 @@ function App() {
                 { route === 'home'
                     ? <div>
                         <Logo />
-                        <Rank />
-                        <ImageLinkForm onInputChange={onInputChange} onButtonSubmit={onButtonSubmit}/>
+                        <Rank user={user} />
+                        <ImageLinkForm 
+                            onInputChange={onInputChange} 
+                            onButtonSubmit={onButtonSubmit}
+                        />
                         <FaceRecognition box={box} imageURL={imageUrl}/>
                     </div>
                     : (
                         route === "signin"
-                        ? <Signin onRouteChange={onRouteChange}/>
-                        : <Register onRouteChange={onRouteChange}/>
+                        ? <Signin loadUser={loadUser} onRouteChange={onRouteChange} onSubmitSignIn={onSubmitSignIn} onEmailChange={onEmailChange} onPasswordChange={onPasswordChange}/>
+                        : <Register onSubmitRegister={onSubmitRegister} onNameChange={onNameChange} onEmailChange={onEmailChange} onPasswordChange={onPasswordChange}/>
                     )
                 }                    
             </div>)
